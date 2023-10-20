@@ -1,3 +1,4 @@
+"use strict";
 /** Routes about invoices. */
 
 const express = require("express");
@@ -7,8 +8,10 @@ const db = require("../db");
 
 const { NotFoundError, BadRequestError } = require("../expressError");
 
+
 /** GET / get all invoices
  * - returns JSON:  `{invoices: [{id, comp_code}, ...]}` */
+
 router.get("/", async function (req, res, next) {
 
   const results = await db.query("SELECT id, comp_code FROM invoices");
@@ -28,6 +31,7 @@ router.get("/", async function (req, res, next) {
  *  paid_date,
  *  company: {code, name, description}}`
 */
+
 router.get("/:id", async function (req, res, next) {
 
   const id = req.params.id;
@@ -41,13 +45,13 @@ router.get("/:id", async function (req, res, next) {
 
   if (!invoice) throw new NotFoundError(`No matching invoice: ${id}`);
 
-  company_code = invoice.comp_code;
+  const company_code = invoice.comp_code;
 
   const companyResults = await db.query(`
           SELECT code, name, description
           FROM companies
           WHERE code=$1`, [company_code]);
-  const company = companyResults.rows;
+  const company = companyResults.rows[0];
 
   invoice.company = company;
   delete invoice.comp_code;
@@ -85,6 +89,7 @@ router.post("/", async function (req, res, next) {
 
 });
 
+
 /** PUT/ [id] update an invoice
  * take {amt}
  * return JSON:
@@ -116,6 +121,24 @@ router.put("/:id", async function (req, res, next) {
 });
 
 
+
+/** DELETE /[id] - delete an invoice, return `{status: "deleted"}` */
+
+router.delete("/:id", async function (req, res, next) {
+
+  const id = req.params.id;
+
+  const results = await db.query(
+    `DELETE FROM invoices
+     WHERE id = $1
+     RETURNING id`, [id]);
+     
+  const invoice = results.rows[0];
+
+  if (!invoice) throw new NotFoundError(`No matching invoice: ${id}`);
+
+  return res.json({ status: "deleted" });
+});
 
 
 

@@ -1,5 +1,4 @@
 "use strict";
-
 /** Routes about companies. */
 
 const express = require("express");
@@ -7,6 +6,7 @@ const express = require("express");
 const router = new express.Router();
 const db = require("../db");
 const { NotFoundError, BadRequestError } = require("../expressError");
+
 
 /** GET / - returns `{companies: [{code,name}, ...]}` */
 
@@ -18,22 +18,33 @@ router.get("/", async function (req, res, next) {
   return res.json({ companies });
 });
 
+
 /** GET /[code] - return data about one company:
- *  `{company: {code, name, description}}` */
+ *  `{company: {code, name, description. invoices: [id,...]}}` */
 
 router.get("/:code", async function (req, res, next) {
+
   const code = req.params.code;
-  const results = await db.query(
+
+  const companyResults = await db.query(
     `SELECT code, name, description
      FROM companies
      WHERE code = $1`, [code]);
+  const company = companyResults.rows[0];
 
-  const company = results.rows[0];
+  const invoiceResults = await db.query(
+    `SELECT id
+     FROM invoices
+     WHERE comp_code=$1`,[code]);
+  const invoices = invoiceResults.rows;
 
   if (!company) throw new NotFoundError(`No matching company: ${code}`);
 
+  company.invoices = invoices;
+
   return res.json({ company });
 });
+
 
 /** POST / - create a company from data;
  * takes JSON: {code, name, description}
@@ -53,6 +64,7 @@ router.post("/", async function (req, res, next) {
 
   return res.status(201).json({ company });
 });
+
 
 /** PUT /[code] - update fields in company;
  * take JSON: {name, description}
